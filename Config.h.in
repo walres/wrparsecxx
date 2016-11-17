@@ -1,0 +1,150 @@
+/**
+ * \file Config.h
+ *
+ * \brief Platform-dependent macro definitions
+ *
+ * \copyright
+ * \parblock
+ *
+ *   Copyright 2013-2016 James S. Waller
+ *
+ *   Licensed under the Apache License, Version 2.0 (the "License");
+ *   you may not use this file except in compliance with the License.
+ *   You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *   Unless required by applicable law or agreed to in writing, software
+ *   distributed under the License is distributed on an "AS IS" BASIS,
+ *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *   See the License for the specific language governing permissions and
+ *   limitations under the License.
+ *
+ * \endparblock
+ */
+#ifndef WRUTIL_CONFIG_H
+#define WRUTIL_CONFIG_H
+
+// include a standard library header to get identifying macros
+#include <utility>
+
+#define WRUTIL_VERSION_MAJOR @WRUTIL_VERSION_MAJOR@
+#define WRUTIL_VERSION_MINOR @WRUTIL_VERSION_MINOR@
+#define WRUTIL_VERSION_PATCH @WRUTIL_VERSION_PATCH@
+
+#cmakedefine WR_HAVE_ELF_VISIBILITY_ATTR 1
+
+#cmakedefine WR_HAVE_STD_CODECVT_UTF8 1
+#cmakedefine WR_HAVE_STD_CODECVT_CHAR16 1
+#cmakedefine WR_HAVE_STD_CODECVT_CHAR32 1
+#cmakedefine WR_HAVE_STD_WBUFFER_CONVERT 1
+#cmakedefine WR_HAVE_STD_WSTRING_CONVERT 1
+
+#cmakedefine WR_HAVE_STD_FILESYSTEM 1
+#cmakedefine WR_HAVE_STD_EXP_FILESYSTEM 1
+
+#cmakedefine WR_HAVE_FSIMPL_PROXIMATE 1
+#cmakedefine WR_HAVE_FSIMPL_RELATIVE 1
+#cmakedefine WR_HAVE_FSIMPL_WEAKLY_CANONICAL 1
+#cmakedefine WR_HAVE_FSIMPL_LEXICALLY_NORMAL 1
+#cmakedefine WR_HAVE_FSIMPL_UNIQUE_PATH 1
+#cmakedefine WR_HAVE_FSIMPL_U8PATH 1
+#cmakedefine WR_HAVE_FS_PATH_LEXICALLY_NORMAL 1
+#cmakedefine WR_HAVE_FS_PATH_LEXICALLY_RELATIVE 1
+#cmakedefine WR_HAVE_FS_PATH_LEXICALLY_PROXIMATE 1
+#cmakedefine WR_HAVE_FS_PATH_TO_U8STRING 1
+
+#cmakedefine WR_HAVE_STD_STRING_VIEW 1
+#cmakedefine WR_HAVE_STD_EXP_STRING_VIEW 1
+
+#cmakedefine WR_HAVE_STD_OPTIONAL 1
+#cmakedefine WR_HAVE_STD_EXP_OPTIONAL 1
+
+#cmakedefine WR_HAVE_STD_CTYPE_BLANK 1
+
+#cmakedefine WR_HAVE_STD_IS_TRIVIALLY_DESTRUCTIBLE 1
+#cmakedefine WR_HAVE_STD_HAS_TRIVIAL_DESTRUCTOR 1
+#cmakedefine WR_HAVE_STD_IS_NOTHROW_DESTRUCTIBLE 1
+
+#ifdef _WIN32
+#       define WR_WINDOWS 1
+#       if defined(_WIN64)
+#               define WR_WIN64 1
+#       else
+#               define WR_WIN32 1
+#       endif
+#       if defined(__CYGWIN__)
+#               define WR_POSIX 1
+#               define WR_CYGWIN 1
+#       else
+#               define WR_WINAPI 1
+#       endif
+#elif defined(__APPLE__) && defined(__MACH__)
+#       define WR_MACOS 1
+#       define WR_POSIX 1
+#elif defined(unix) || defined(__unix__) || defined(__unix) 
+#       define WR_POSIX 1
+#       if defined(__linux__)
+#               define WR_LINUX 1
+#       elif defined(__FreeBSD__)
+#               define WR_FREEBSD 1
+#       elif defined(__NetBSD__)
+#               define WR_NETBSD 1
+#       elif defined(__OpenBSD__)
+#               define WR_OPENBSD 1
+#       elif defined(__DragonFly__)
+#               define WR_DRAGONFLYBSD 1
+#       elif defined(sun) || defined(__sun)
+#               define WR_SOLARIS 1
+#       elif defined(_AIX)
+#               define WR_AIX 1
+#       elif defined(_hpux) || defined(hpux) || defined(__hpux)
+#               define WR_HPUX 1
+#       elif defined(__ANDROID__)
+#               define WR_ANDROID 1
+#       elif defined(__QNX__) || defined(__QNXNTO__)
+#               define WR_QNX 1
+#       endif
+#endif
+
+#if WR_WINDOWS
+#       ifdef wrutil_EXPORTS
+#               define WRUTIL_API __declspec(dllexport)
+#       elif defined(wrutil_IMPORTS)
+#               define WRUTIL_API __declspec(dllimport)
+#       else
+#               define WRUTIL_API
+#       endif
+#elif WR_HAVE_ELF_VISIBILITY_ATTR
+#       ifdef wrutil_EXPORTS
+#               define WRUTIL_API __attribute__((visibility("default")))
+#       else
+#               define WRUTIL_API
+#       endif
+#else
+#       define WRUTIL_API
+#endif
+
+#ifdef __GLIBCXX__
+#       define WR_LIBSTDCXX 1
+#elif defined(_LIBCPP_VERSION)
+#       define WR_LIBCXX 1
+#elif defined(_CPPLIB_VER)
+#       define WR_DINKUM 1
+#       define WR_DISABLE_STD_WBUFFER_CONVERT 1
+#       define WR_DISABLE_STD_WSTRING_CONVERT 1
+                        /* Dinkumware C++ library's std::wbuffer_convert
+                           doesn't work with wr::codecvt_utf8_narrow */
+#endif
+
+#define WR_WORDSIZE       @WR_WORDSIZE@
+#define WR_SIZEOF_WCHAR_T @WR_SIZEOF_WCHAR_T@
+
+#if __cplusplus > 201103L
+#       define WR_CXX14_CONSTEXPR constexpr
+#else
+#       define WR_CXX14_CONSTEXPR
+#endif
+
+
+#endif // !WRUTIL_CONFIG_H
