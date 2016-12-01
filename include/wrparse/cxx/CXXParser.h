@@ -70,10 +70,10 @@ private:
 
 public:
         /*
-         * C++ grammar productions
+         * C++ grammar nonterminals
          */
                          // A.1 Keywords [gram.key]
-        const Production typedef_name,
+        const NonTerminal typedef_name,
                          namespace_name,
                          original_namespace_name,
                          namespace_alias,
@@ -362,8 +362,8 @@ public:
         };
 
         /**
-         * \brief Data attached to \c decl_specifier_seq productions plus the
-         *      similar productions \c trailing_type_specifier_seq and
+         * \brief Data attached to \c decl_specifier_seq nonterminals plus the
+         *      similar nonterminals \c trailing_type_specifier_seq and
          *      \c type_specifier_seq
          */
         class DeclSpecifier : public AuxData
@@ -391,16 +391,16 @@ public:
                                      FLOAT, DOUBLE, NULLPTR_T, OTHER }
                         type_spec = NO_TYPE;  ///< core type specifier present
 
-                const Production *type_prod = nullptr;
-                                ///< production for core type specifier
-                const Token      *type_pos  = nullptr;
+                const Rule  *type_rule = nullptr;
+                                ///< matched rule for core type specifier
+                const Token *type_pos  = nullptr;
                                 ///< first token of type specifier
-                AuxData::Ptr      user_data;
+                AuxData::Ptr user_data;
                                 ///< for API users to hang extra data on
         private:
                 friend CXXParser;
 
-                static bool end(ParseState &state);  // production callback
+                static bool end(ParseState &state);  // nonterminal callback
 
                 bool addDeclSpecifier(const CXXParser &cxx,
                                       const SPPFNode &spec); // helper for end()
@@ -411,7 +411,7 @@ public:
          * \brief Data attached to \c declarator, \c nested_declarator,
          *      \c abstract_declarator, \c nested_abstract_declarator,
          *      \c new_declarator, \c conversion_declarator and
-         *      \c lambda_declarator productions
+         *      \c lambda_declarator nonterminals
          */
         class WRPARSECXX_API Declarator : public AuxData
         {
@@ -440,7 +440,7 @@ public:
                 // predicates
                 static bool isFunction(ParseState &state);
 
-                // production callbacks
+                // nonterminal callbacks
                 static bool end(ParseState &state);
 
                 // final checks and settings
@@ -450,7 +450,7 @@ public:
 
         /**
          * \brief Data attached to \c ptr_operator and
-         *      \c parameter_declaration_clause productions
+         *      \c parameter_declaration_clause nonterminals
          */
         class WRPARSECXX_API DeclaratorPart : public AuxData
         {
@@ -474,7 +474,7 @@ public:
         private:
                 friend CXXParser;
 
-                // production callbacks
+                // nonterminal callbacks
                 static bool endPtrOperator(ParseState &state);
                 static bool endParametersAndQualifiers(ParseState &state);
         };

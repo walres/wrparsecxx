@@ -21,12 +21,18 @@ parseCXX(
         wr::parse::CXXParser parser(lexer);
 
         parser.enableDebug(getenv("WR_DEBUG_PARSER") != nullptr);
+        size_t largest = 0;
 
         while (!input.bad() && !parser.nextToken()->is(wr::parse::TOK_EOF)) {
                 wr::parse::SPPFNode::Ptr result
                                          = parser.parse(parser.declaration);
                 if (result) {
                         wr::uout << *result << std::endl;
+                        size_t token_count = 0;
+                        for (auto *t = result->firstToken(); t; t = t->next()) {
+                                ++token_count;
+                        }
+                        largest = std::max(largest, token_count);
                 } else {
                         wr::uerr << "parse failed\n";
                         status = EXIT_FAILURE;
@@ -35,6 +41,8 @@ parseCXX(
 
                 lexer.clearStorage();
         }
+
+        wr::uout << "largest construct has " << largest << " token(s)\n";
 
         if (input.bad()) {
                 status = EXIT_FAILURE;

@@ -151,12 +151,12 @@ CXXParser::CXXParser(
          */
         primary_expression { "primary-expression", {
                 { literal },
-                { paren_expression },  // moved into distinct production below
+                { paren_expression },  // moved into distinct nonterminals below
                 { id_expression },
                 {{ TOK_KW_THIS }, langCXX() },
                 {{ lambda_expression }, stdCXX11() },
                 {{ generic_selection }, stdC11() }
-        }, Production::HIDE_IF_DELEGATE },
+        }, NonTerminal::HIDE_IF_DELEGATE },
 
         generic_selection { "generic-selection", stdC11(), {
                 { TOK_KW_GENERIC, TOK_LPAREN, assignment_expression,
@@ -166,7 +166,7 @@ CXXParser::CXXParser(
         generic_assoc_list { "generic-assoc-list", stdC11(), {
                 { generic_association },
                 { generic_assoc_list, TOK_COMMA, generic_association },
-        }, Production::TRANSPARENT },
+        }, NonTerminal::TRANSPARENT },
 
         generic_association { "generic-association", stdC11(), {
                 { TOK_KW_DEFAULT, TOK_COLON, assignment_expression },
@@ -187,7 +187,7 @@ CXXParser::CXXParser(
                 {{ operator_function_id }, langCXX() },  // e.g. "operator="
                 {{ conversion_function_id }, langCXX() }, // e.g. "operator int"
                 {{ literal_operator_id }, stdCXX11() },  // operator""
-                // destructor IDs moved to separate production */
+                // destructor IDs moved to separate nonterminals */
                 {{ destructor_id }, langCXX() },
                 {{ template_id }, langCXX() }
         }},
@@ -233,7 +233,7 @@ CXXParser::CXXParser(
                 {{ TOK_LPAREN, type_id, TOK_RPAREN, TOK_LBRACE,
                         initializer_list, opt(TOK_COMMA),
                         TOK_RBRACE }, stdC99() }
-        }, Production::HIDE_IF_DELEGATE },
+        }, NonTerminal::HIDE_IF_DELEGATE },
 
         array_subscript { "array-subscript", {
                 { TOK_LSQUARE, expression, TOK_RSQUARE },
@@ -278,7 +278,7 @@ CXXParser::CXXParser(
                 {{ noexcept_expression }, stdCXX11() },
                 {{ new_expression }, langCXX() },
                 {{ delete_expression }, langCXX() }
-        }, Production::HIDE_IF_DELEGATE },
+        }, NonTerminal::HIDE_IF_DELEGATE },
 
         unary_operator { "unary-operator", {
                 { TOK_STAR },
@@ -373,7 +373,7 @@ CXXParser::CXXParser(
         capture_list { "capture-list", stdCXX11(), {
                 { capture, opt(TOK_ELLIPSIS) },
                 { capture_list, TOK_COMMA, capture, opt(TOK_ELLIPSIS) }
-        }, Production::TRANSPARENT },
+        }, NonTerminal::TRANSPARENT },
 
         capture { "capture", stdCXX11(), {
                 { simple_capture },
@@ -404,13 +404,13 @@ CXXParser::CXXParser(
         cast_expression { "cast-expression", {
                 { unary_expression },
                 { TOK_LPAREN, type_id, TOK_RPAREN, cast_expression }
-        }, Production::HIDE_IF_DELEGATE },
+        }, NonTerminal::HIDE_IF_DELEGATE },
 
         pm_expression { "pm-expression", {
                 { cast_expression },
                 {{ pm_expression, TOK_DOTSTAR, cast_expression }, langCXX() },
                 {{ pm_expression, TOK_ARROWSTAR, cast_expression }, langCXX() },
-        }, Production::HIDE_IF_DELEGATE },
+        }, NonTerminal::HIDE_IF_DELEGATE },
 
         multiplicative_expression { "multiplicative-expression", {
                 { pm_expression },
@@ -420,7 +420,7 @@ CXXParser::CXXParser(
                         divide },
                 {{ multiplicative_expression, TOK_PERCENT, pm_expression },
                         modulo },
-        }, Production::HIDE_IF_DELEGATE },
+        }, NonTerminal::HIDE_IF_DELEGATE },
 
         additive_expression { "additive-expression", {
                 { multiplicative_expression },
@@ -428,7 +428,7 @@ CXXParser::CXXParser(
                         binary_add },
                 {{ additive_expression, TOK_MINUS, multiplicative_expression },
                         binary_subtract },
-        }, Production::HIDE_IF_DELEGATE },
+        }, NonTerminal::HIDE_IF_DELEGATE },
 
         shift_expression { "shift-expression", {
                 { additive_expression },
@@ -436,7 +436,7 @@ CXXParser::CXXParser(
                         left_shift },
                 {{ shift_expression, TOK_RSHIFT, additive_expression },
                         right_shift },
-        }, Production::HIDE_IF_DELEGATE },
+        }, NonTerminal::HIDE_IF_DELEGATE },
 
         relational_expression { "relational-expression", {
                 { shift_expression },
@@ -447,7 +447,7 @@ CXXParser::CXXParser(
                         less_or_equal },
                 {{ relational_expression, TOK_GREATEREQUAL, shift_expression },
                         greater_or_equal }
-        }, Production::HIDE_IF_DELEGATE },
+        }, NonTerminal::HIDE_IF_DELEGATE },
 
         equality_expression { "equality-expression", {
                 { relational_expression },
@@ -455,32 +455,32 @@ CXXParser::CXXParser(
                         equal },
                 {{ equality_expression, TOK_EXCLAIMEQUAL,
                         relational_expression }, not_equal },
-        }, Production::HIDE_IF_DELEGATE },
+        }, NonTerminal::HIDE_IF_DELEGATE },
 
         and_expression { "and-expression", {
                 { equality_expression },
                 { and_expression, TOK_AMP, equality_expression }
-        }, Production::HIDE_IF_DELEGATE },
+        }, NonTerminal::HIDE_IF_DELEGATE },
 
         exclusive_or_expression { "exclusive-or-expression", {
                 { and_expression },
                 { exclusive_or_expression, TOK_CARET, and_expression }
-        }, Production::HIDE_IF_DELEGATE },
+        }, NonTerminal::HIDE_IF_DELEGATE },
 
         inclusive_or_expression { "inclusive-or-expression", {
                 { exclusive_or_expression },
                 { inclusive_or_expression, TOK_PIPE, exclusive_or_expression }
-        }, Production::HIDE_IF_DELEGATE },
+        }, NonTerminal::HIDE_IF_DELEGATE },
 
         logical_and_expression { "logical-and-expression", {
                 { inclusive_or_expression },
                 { logical_and_expression, TOK_AMPAMP, inclusive_or_expression }
-        }, Production::HIDE_IF_DELEGATE },
+        }, NonTerminal::HIDE_IF_DELEGATE },
 
         logical_or_expression { "logical-or-expression", {
                 { logical_and_expression },
                 { logical_or_expression, TOK_PIPEPIPE, logical_and_expression }
-        }, Production::HIDE_IF_DELEGATE },
+        }, NonTerminal::HIDE_IF_DELEGATE },
 
         conditional_expression { "conditional-expression", {
                 { logical_or_expression },
@@ -488,7 +488,7 @@ CXXParser::CXXParser(
                         assignment_expression }, langCXX() },
                 {{ logical_or_expression, TOK_QUESTION, expression, TOK_COLON,
                         conditional_expression }, !langCXX() }
-        }, Production::HIDE_IF_DELEGATE },
+        }, NonTerminal::HIDE_IF_DELEGATE },
 
         assignment_expression { "assignment-expression", {
                 { conditional_expression },
@@ -497,7 +497,7 @@ CXXParser::CXXParser(
                 {{ throw_expression }, langCXX() },
                 {{ unary_expression, assignment_operator,
                         assignment_expression }, !langCXX() }
-        }, Production::HIDE_IF_DELEGATE },
+        }, NonTerminal::HIDE_IF_DELEGATE },
 
         assignment_operator { "assignment-operator", {
                 { TOK_EQUAL },
@@ -562,12 +562,12 @@ CXXParser::CXXParser(
                                   !langCXX() && !stdC99(), {
                 { block_declaration },
                 { block_declaration_seq, block_declaration }
-        }, Production::TRANSPARENT },
+        }, NonTerminal::TRANSPARENT },
 
         statement_seq { "statement-seq", {
                 { statement },
                 { statement_seq, statement }
-        }, Production::TRANSPARENT },
+        }, NonTerminal::TRANSPARENT },
 
         selection_statement { "selection-statement", {
                 { TOK_KW_IF, TOK_LPAREN, condition, TOK_RPAREN, statement },
@@ -645,7 +645,7 @@ CXXParser::CXXParser(
         declaration_seq { "declaration-seq", {
                 { declaration },
                 { declaration_seq, declaration }
-        }, Production::TRANSPARENT },
+        }, NonTerminal::TRANSPARENT },
 
         declaration { "declaration", {
                 { block_declaration },
@@ -742,7 +742,7 @@ CXXParser::CXXParser(
                 { type_qualifier },
                 {{ typename_specifier }, stdCXX11() },
                 {{ atomic_type_specifier }, stdC11() }
-        }, Production::TRANSPARENT },
+        }, NonTerminal::TRANSPARENT },
 
         type_specifier_seq { "type-specifier-seq", {
                 { type_specifier, opt(attribute_specifier_seq) },
@@ -755,7 +755,7 @@ CXXParser::CXXParser(
         }},
 
         simple_type_specifier { "simple-type-specifier", {
-                // user-defined type specifiers moved into separate production
+                // user-defined type specifiers moved into separate nonterminal
                 {{ ud_type_specifier }, langCXX() },
                 {{ typedef_name }, !langCXX() },
                 {{ undeclared_name }, !langCXX() },
@@ -833,7 +833,7 @@ CXXParser::CXXParser(
         enumerator_list { "enumerator-list", {
                 { enumerator_definition },
                 { enumerator_list, TOK_COMMA, enumerator_definition }
-        }, Production::TRANSPARENT },
+        }, NonTerminal::TRANSPARENT },
 
         enumerator_definition { "enumerator-definition", {
                 { enumerator },
@@ -987,7 +987,7 @@ CXXParser::CXXParser(
         balanced_token_seq { "balanced-token-seq", stdCXX11(), {
                 { opt(balanced_token) },
                 { balanced_token_seq, balanced_token }
-        }, Production::TRANSPARENT },
+        }, NonTerminal::TRANSPARENT },
 
         balanced_token { "balanced-token", stdCXX11(), {
                 { TOK_LPAREN, balanced_token_seq, TOK_RPAREN },
@@ -1020,14 +1020,14 @@ CXXParser::CXXParser(
         ptr_declarator { "ptr-declarator", {
                 { noptr_declarator },
                 { ptr_operator, ptr_declarator }
-        }, Production::TRANSPARENT },
+        }, NonTerminal::TRANSPARENT },
 
         noptr_declarator { "noptr-declarator", {
                 { declarator_id, opt(attribute_specifier_seq) },
                 { noptr_declarator, parameters_and_qualifiers },
                 { noptr_declarator, array_declarator },
                 { nested_declarator }
-        }, Production::TRANSPARENT },
+        }, NonTerminal::TRANSPARENT },
 
         nested_declarator { "nested-declarator", {
                 { TOK_LPAREN, ptr_declarator, TOK_RPAREN }
@@ -1108,13 +1108,13 @@ CXXParser::CXXParser(
         ptr_abstract_declarator { "ptr-abstract-declarator", {
                 { noptr_abstract_declarator },
                 { ptr_operator, opt(ptr_abstract_declarator) }
-        }, Production::TRANSPARENT },
+        }, NonTerminal::TRANSPARENT },
 
         noptr_abstract_declarator { "noptr-abstract-declarator", {
                 { opt(noptr_abstract_declarator), parameters_and_qualifiers },
                 { opt(noptr_abstract_declarator), array_declarator },
                 { nested_abstract_declarator }
-        }, Production::TRANSPARENT },
+        }, NonTerminal::TRANSPARENT },
 
         nested_abstract_declarator { "nested-abstract-declarator", {
                 { TOK_LPAREN, ptr_abstract_declarator, TOK_RPAREN }
@@ -1150,7 +1150,7 @@ CXXParser::CXXParser(
         parameter_declaration_list { "parameter-declaration-list", {
                 { parameter_declaration },
                 { parameter_declaration_list, TOK_COMMA, parameter_declaration }
-        }, Production::TRANSPARENT },
+        }, NonTerminal::TRANSPARENT },
 
         parameter_declaration { "parameter-declaration", {
                 { opt(attribute_specifier_seq), decl_specifier_seq,
@@ -1218,7 +1218,7 @@ CXXParser::CXXParser(
         // C99 designated initializers
         designation { "designation", stdC99(), {
                 { designator_list, TOK_EQUAL }
-        }, Production::TRANSPARENT },
+        }, NonTerminal::TRANSPARENT },
 
         designator_list { "designator-list", stdC99(), {
                 { designator },
@@ -1286,7 +1286,7 @@ CXXParser::CXXParser(
                 { member_declaration, opt(member_specification) },
                 {{ access_specifier, TOK_COLON,
                         opt(member_specification) }, langCXX() }
-        }, Production::TRANSPARENT },  // = struct-declaration-list in C grammar
+        }, NonTerminal::TRANSPARENT }, // = struct-declaration-list in C grammar
 
         member_declarator_list { "member-declarator-list", {
                 { member_declarator },
@@ -1336,7 +1336,7 @@ CXXParser::CXXParser(
                 { base_specifier, opt(TOK_ELLIPSIS) },
                 { base_specifier_list, TOK_COMMA, base_specifier,
                         opt(TOK_ELLIPSIS) }
-        }, Production::TRANSPARENT },
+        }, NonTerminal::TRANSPARENT },
 
         base_specifier { "base-specifier", langCXX(), {
                 { opt(attribute_specifier_seq), base_type_specifier },
@@ -1385,7 +1385,7 @@ CXXParser::CXXParser(
                 { mem_initializer, opt(TOK_ELLIPSIS) },
                 { mem_initializer, opt(TOK_ELLIPSIS), TOK_COMMA,
                         mem_initializer_list }
-        }, Production::TRANSPARENT },
+        }, NonTerminal::TRANSPARENT },
 
         mem_initializer { "mem-initializer", langCXX(), {
                 { mem_initializer_id, TOK_LPAREN, opt(expression_list),
@@ -1564,7 +1564,7 @@ CXXParser::CXXParser(
         type_id_list { "type-id-list", langCXX(), {
                 { type_id, opt(TOK_ELLIPSIS) },
                 { type_id_list, type_id, opt(TOK_ELLIPSIS) }
-        }, Production::TRANSPARENT },
+        }, NonTerminal::TRANSPARENT },
 
         noexcept_specification { "noexcept-specification", stdCXX11(), {
                 { TOK_KW_NOEXCEPT, TOK_LPAREN, constant_expression,
@@ -1798,7 +1798,7 @@ CXXParser::DeclSpecifier::addDeclSpecifier(
                         }
 
                         type_spec = type;
-                        type_prod = match->nonTerminal();
+                        type_rule = match->rule();
                         type_pos  = spec.firstToken();
                 } else if (size) {
                         if (size_spec && (size != size_spec)) {
@@ -1842,7 +1842,7 @@ CXXParser::DeclSpecifier::addDeclSpecifier(
                 /* elaborated-type-specifier, typename-specifier,
                    enum-specifier or class-specifier */
                 type_spec = OTHER;
-                type_prod = spec.nonTerminal();
+                type_rule = spec.rule();
                 type_pos  = spec.firstToken();
         }
 
@@ -1858,7 +1858,7 @@ CXXParser::DeclSpecifier::addDeclSpecifier(
  * conversion-declarator node.
  *
  * \param [in] cxx
- *      parser object for referencing the C++ grammar productions
+ *      parser object for referencing the C++ grammar nonterminals
  * \param [in] dcl_node
  *      declarator node to search under
  * \return
@@ -1894,7 +1894,7 @@ CXXParser::Declarator::lastPtrOperator(
  * \brief determine if a declarator node is a reference
  *
  * \param [in] cxx
- *      parser object for referencing the C++ grammar productions
+ *      parser object for referencing the C++ grammar nonterminals
  * \param [in] dcl_node
  *      declarator node
  * \return
