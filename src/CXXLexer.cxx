@@ -68,18 +68,6 @@ CXXLexer::CXXLexer(
 
 //--------------------------------------
 
-WRPARSECXX_API void
-CXXLexer::onReset(
-        std::istream &/* input */,
-        int           /* line */,
-        int           /* col */
-)
-{
-        next_token_flags_ = 0;
-}
-
-//--------------------------------------
-
 WRPARSECXX_API Token &
 CXXLexer::lex(
         Token &t
@@ -89,22 +77,16 @@ CXXLexer::lex(
 
         do {
                 again = false;
+                base_t::lex(t);  // initialise token
 
                 switch (readToken(t)) {
                 case TOK_WHITESPACE:
-                        if (!options_.have(cxx::KEEP_SPACE)) {
-                                again = true;
-                        }
+                        again = !options_.have(cxx::KEEP_SPACE);
                         break;
                 case TOK_COMMENT:
-                        if (options_.have(cxx::KEEP_COMMENTS)) {
-                                next_token_flags_ = 0;
-                        } else {
-                                again = true;
-                        }
+                        again = !options_.have(cxx::KEEP_COMMENTS);
                         break;
                 default:
-                        next_token_flags_ = 0;
                         break;
                 }
         } while (again);
@@ -123,23 +105,12 @@ CXXLexer::updateNextTokenFlags(
         case cxx::TOK_WHITESPACE:
                 if (lastRead() == U'\n') {
                         // newline is always a separate token
-                        next_token_flags_ &= ~(TF_SPACE_BEFORE | TF_PREPROCESS);
-                        next_token_flags_ |= TF_STARTS_LINE;
-                } else {
-                        next_token_flags_ |= TF_SPACE_BEFORE;
-                        // does not cancel TF_STARTS_LINE
+                        setNextTokenFlags(nextTokenFlags() & ~TF_PREPROCESS);
                 }
                 break;
-        case TOK_NULL:
-                /* does not cancel TF_STARTS_LINE, TF_SPACE_BEFORE
-                   or TF_PREPROCESS */
-                break;
         case TOK_EOF:
-                next_token_flags_ &= ~(TF_SPACE_BEFORE | TF_PREPROCESS);
-                next_token_flags_ |= TF_STARTS_LINE;
-                break;
-        default:
-                next_token_flags_ &= ~(TF_SPACE_BEFORE | TF_STARTS_LINE);
+                setNextTokenFlags((nextTokenFlags() & ~TF_PREPROCESS)
+                                        | TF_STARTS_LINE);
                 break;
         }
 }
@@ -266,9 +237,6 @@ CXXLexer::readToken(
         Token &t
 )
 {
-        t.reset().setOffset(numeric_cast<uint32_t>(offset()))
-                 .setFlags(next_token_flags_);
-
         bool     eat_next = false;
         char32_t ch       = read();
 
@@ -812,11 +780,9 @@ CXXLexer::readToken(
         }
 
         if (input().bad()) {
-                throw std::runtime_error(
-                        printStr("input error occurred at line %u", line()));
-        }
-
-        if (eat_next) {
+                emit(Diagnostic::FATAL_ERROR, 1, "input error");
+                t.reset();
+        } else if (eat_next) {
                 read();
         }
 
@@ -911,6 +877,9 @@ char32_t
 CXXLexer::ucn()
 {
         size_t n;
+        auto   start_line = line();
+        auto   start_column = column();
+        auto   start_offset = offset();
 
         switch (read()) {
         case U'u':
@@ -937,13 +906,22 @@ CXXLexer::ucn()
                 c |= uxdigitval(digit);
         }
 
-        if (i < n) {  // not a UCN: insufficient digits given
+        if (i < n) {
+                emit(Diagnostic::ERROR, start_offset, offset() - start_offset,
+                     start_line, start_column,
+                     "Not a UCN: insufficient digits given");
                 backtrack(i + 1);
                 c = eof;
         } else if ((c >= 0xd800) && (c <= 0xdfff)) {
-                c = eof;  // illegal UCN: surrogate code point
+                emit(Diagnostic::ERROR, start_offset, offset() - start_offset,
+                     start_line, start_column,
+                     "Illegal UCN: surrogate code point");
+                c = eof;
         } else if (static_cast<uint32_t>(c) > 0x1fffff) {  // signed char32_t?
-                c = eof;  // illegal UCN: code point out of range
+                emit(Diagnostic::ERROR, start_offset, offset() - start_offset,
+                     start_line, start_column,
+                     "Not a UCN: code point out of range 0 - 0x1fffff");
+                c = eof;
         } else {
                 replace(n + 2, c);
         }
@@ -1237,9 +1215,9 @@ CXXLexer::stringOrCharLiteral(
                         } else {
                                 kind = "character";
                         }
-                        throw std::runtime_error(printStr(
-                                "%u:%u: unterminated %s literal",
-                                line(), column(), kind));
+                        emit(Diagnostic::ERROR, t,
+                                "unterminated %s literal", kind);
+                        break;
                 } else if (c != U'\\') {
                         utf8_append(tmp_spelling_buf_, lastRead());
                 } else {
@@ -1366,6 +1344,9 @@ CXXLexer::rawStringLiteral(
         char32_t c,
                  delimiter[MAX_DELIMITER_LEN];
         int      delimiter_len = 0;
+        auto     start_offset = offset();
+        auto     start_line = line();
+        auto     start_column = column();
 
         /*
          * read optional delimiter between '"' and '('
@@ -1373,30 +1354,39 @@ CXXLexer::rawStringLiteral(
         do {
                 switch (c = read()) {
                 case eof:
-                        throw std::runtime_error(printStr(
-                                "%u:%u: end of file in raw string literal delimiter",
-                                line(), column()));
+                        emit(Diagnostic::ERROR, 1,
+                               "end of file in raw string literal delimiter");
+                        t.reset();
+                        return;
                 case U'(':
                         break;
                 default:
                         if (!isuspace(c)) {
                                 if (delimiter_len >= MAX_DELIMITER_LEN) {
-                                        throw std::runtime_error(printStr(
-                                                "%u:%u: raw string delimiter cannot be longer than %u characters",
-                                                line(), column(),
-                                                (int) MAX_DELIMITER_LEN));
+                                        emit(Diagnostic::FATAL_ERROR,
+                                             start_offset,
+                                             offset() - start_offset,
+                                             start_line, start_column,
+                                             "raw string literal delimiter length (%d) longer than maximum (%d)",
+                                             delimiter_len,
+                                             int(MAX_DELIMITER_LEN));
+                                        t.reset();
+                                        return;
                                 }
                                 delimiter[delimiter_len++] = c;
                         } else {
-                                throw std::runtime_error(printStr(
-                                        "%u:%u: illegal whitespace character in raw string literal delimiter",
-                                        line(), column()));
+                                backtrack();
+                                emit(Diagnostic::ERROR, utf8_seq_size(c),
+                                     "illegal whitespace character in raw string literal delimiter");
+                                read();
                         }
                         break;
                 case U'\\': case ')':
-                        throw std::runtime_error(printStr(
-                                "%u:%u: illegal character '%c' in raw string literal delimiter",
-                                line(), column(), c));
+                        backtrack();
+                        emit(Diagnostic::ERROR, utf8_seq_size(c),
+                             "illegal character '%c' in raw string literal delimiter",
+                             c);
+                        read();
                         break;
                 }
         } while ((c != U'(') && (c != eof));
@@ -1414,9 +1404,9 @@ CXXLexer::rawStringLiteral(
                         // don't interpret trigraphs or escaped newlines
 
                 if (c == eof) {
-                        throw std::runtime_error(printStr(
-                                "%u:%u: unterminated raw string literal",
-                                line(), column()));
+                        emit(Diagnostic::ERROR, t,
+                             "unterminated raw string literal");
+                        break;
                 } else if (c == U')') {
                         if (delimiter2_len < 0) {
                                 tentative_spelling_len
@@ -1521,9 +1511,9 @@ CXXLexer::comment(
                                 }
                                 utf8_append(tmp_spelling_buf_, read());
                         } else if (read() == eof) {
-                                throw std::runtime_error(printStr(
-                                        "%u%u: unexpected end of file encountered in comment",
-                                        line(), column()));
+                                emit(Diagnostic::ERROR, t,
+                                     "unexpected end of file encountered in comment");
+                                break;
                         } else {
                                 utf8_append(tmp_spelling_buf_, lastRead());
                                 if ((lastRead() == U'*') && (peek() == U'/')) {
@@ -1540,9 +1530,9 @@ CXXLexer::comment(
                         }
                         read();
                 } else if (read() == eof) {
-                        throw std::runtime_error(printStr(
-                                "%u%u: unexpected end of file encountered in comment",
-                                line(), column()));
+                        emit(Diagnostic::ERROR, t,
+                             "unexpected end of file encountered in comment");
+                        break;
                 } else {
                         if ((lastRead() == U'*') && (peek() == U'/')) {
                                 read();
@@ -1649,14 +1639,15 @@ CXXLexer::ppDirective(
         }
 
         if (!cxx::isPreprocessorDirective(t.kind())) {
-                // XXX unrecognised preprocessor directive
+                emit(Diagnostic::WARNING, t,
+                     "unrecognised preprocessor directive \"#%s\"", name);
                 backtrack(n);
                 t.setKind(cxx::TOK_PP_NULL);
         }
 
         t.setFlags(t.flags() | cxx::TF_PREPROCESS);
         t.setSpelling(cxx::defaultSpelling(t.kind()));
-        next_token_flags_ |= cxx::TF_PREPROCESS;
+        setNextTokenFlags(nextTokenFlags() | cxx::TF_PREPROCESS);
 }
 
 //--------------------------------------

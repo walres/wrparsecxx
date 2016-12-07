@@ -63,8 +63,6 @@ public:
         virtual this_t &clearStorage();
 
 protected:
-        virtual void onReset(std::istream &input, int line, int col) override;
-
         char32_t peek();  // interprets trigraphs and escaped newline
         char32_t read();  // ditto
 
@@ -95,7 +93,6 @@ private:
         const CXXOptions             &options_;
         cxx::KeywordTable             kw_id_table_;
         std::string                   tmp_spelling_buf_;
-        uint8_t                       next_token_flags_;
         std::forward_list<TokenKind>  closing_tokens_;
                 /**< stack of expected matching closing token kind(s) to match
                      "opening" tokens \c "(", \c "{", \c "[" and \c "<" */
