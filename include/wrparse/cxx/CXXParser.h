@@ -391,10 +391,10 @@ public:
                                      FLOAT, DOUBLE, NULLPTR_T, OTHER }
                         type_spec = NO_TYPE;  ///< core type specifier present
 
-                const Rule  *type_rule = nullptr;
-                                ///< matched rule for core type specifier
-                const Token *type_pos  = nullptr;
-                                ///< first token of type specifier
+                SPPFNode::ConstPtr sign_spec_node,
+                                   size_spec_node,
+                                   type_spec_node;
+
                 AuxData::Ptr user_data;
                                 ///< for API users to hang extra data on
         private:
@@ -402,8 +402,8 @@ public:
 
                 static bool end(ParseState &state);  // nonterminal callback
 
-                bool addDeclSpecifier(const CXXParser &cxx,
-                                      const SPPFNode &spec); // helper for end()
+                bool addDeclSpecifier(CXXParser &cxx, const SPPFNode &spec);
+                        // helper for end()
         };
 
 
@@ -444,8 +444,11 @@ public:
                 static bool end(ParseState &state);
 
                 // final checks and settings
-                bool check(CXXParser &cxx, const SPPFNode &dcl_node);
+                bool check(ParseState &state, CXXParser &cxx,
+                           const SPPFNode &dcl_node);
         };
+
+        friend Declarator;
 
 
         /**
@@ -495,6 +498,47 @@ private:
 
 
 } // namespace parse
+
+//--------------------------------------
+
+namespace fmt {
+
+
+struct Arg;
+template <typename> struct TypeHandler;
+
+/**
+ * \brief support for CXXParser::DeclSpecifier::Sign arguments to
+ *      wr::print() functions
+ */
+template <>
+struct WRPARSE_API TypeHandler<parse::CXXParser::DeclSpecifier::Sign>
+{
+        static void set(Arg &arg, parse::CXXParser::DeclSpecifier::Sign val);
+};
+
+/**
+ * \brief support for CXXParser::DeclSpecifier::Size arguments to
+ *      wr::print() functions
+ */
+template <>
+struct WRPARSE_API TypeHandler<parse::CXXParser::DeclSpecifier::Size>
+{
+        static void set(Arg &arg, parse::CXXParser::DeclSpecifier::Size val);
+};
+
+/**
+ * \brief support for CXXParser::DeclSpecifier::Type arguments to
+ *      wr::print() functions
+ */
+template <>
+struct WRPARSE_API TypeHandler<parse::CXXParser::DeclSpecifier::Type>
+{
+        static void set(Arg &arg, parse::CXXParser::DeclSpecifier::Type val);
+};
+
+
+} // namespace fmt
 } // namespace wr
 
 

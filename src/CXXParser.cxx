@@ -1719,11 +1719,12 @@ CXXParser::DeclSpecifier::end(
 
 bool
 CXXParser::DeclSpecifier::addDeclSpecifier(
-        const CXXParser &cxx,
-        const SPPFNode  &spec
+        CXXParser      &cxx,
+        const SPPFNode &spec
 )
 {
         SPPFNode::ConstPtr match;
+        bool               apply = true;
 
         if (spec.is(cxx.type_qualifier)) {
                 type_qual |= qualifierForToken(*spec.firstToken());
@@ -1746,7 +1747,7 @@ CXXParser::DeclSpecifier::addDeclSpecifier(
                         case TOK_KW_DOUBLE:   type = DOUBLE; break;
                         case TOK_KW_SHORT:    size = SHORT; break;
                         case TOK_KW_LONG:
-                                if (spec.firstToken() == spec.lastToken()) {
+                                if (spec.is(TOK_KW_LONG)) {
                                         size = LONG;
                                 } else {
                                         size = LONG_LONG;
@@ -1755,8 +1756,7 @@ CXXParser::DeclSpecifier::addDeclSpecifier(
                         case TOK_KW_SIGNED:   sign = SIGNED; break;
                         case TOK_KW_UNSIGNED: sign = UNSIGNED; break;
                         case TOK_IDENTIFIER:
-                                if (spec.firstToken()->spelling()
-                                                               == "nullptr_t") {
+                                if (*spec.firstToken() == "nullptr_t") {
                                         type = NULLPTR_T;
                                         break;
                                 } // else fall through
@@ -1766,8 +1766,26 @@ CXXParser::DeclSpecifier::addDeclSpecifier(
                 }
 
                 if (type) {
-                        if (type_spec) {  // type already specified elsewhere?
-                                return type_pos == spec.firstToken();
+                        if (type_spec) {
+                                if (type_spec_node == &spec) {
+                                        return true;
+                                } else if (type == OTHER) {
+                                        /* if (type == OTHER) stop parsing
+                                           as this is probably the beginning
+                                           of a declarator */
+                                        return false;
+                                } else if (type_spec_node == &spec) {
+                                        // same type already specified elsewhere
+                                        cxx.emit(Diagnostic::ERROR, spec,
+                                                 "redundant type specifier \"%s\"",
+                                                 spec);
+                                        return true;  // but carry on parsing
+                                } else {
+                                        cxx.emit(Diagnostic::ERROR, spec,
+                                                 "\"%s\" conflicts with earlier type specifier \"%s\"",
+                                                 spec, *type_spec_node);
+                                        return true;
+                                }
                         }
 
                         switch (type) {
@@ -1777,32 +1795,60 @@ CXXParser::DeclSpecifier::addDeclSpecifier(
                         case VOID: case AUTO: case DECLTYPE: case BOOL:
                         case CHAR16_T: case CHAR32_T: case WCHAR_T:
                         case FLOAT: case NULLPTR_T: case OTHER:
-                                if (sign_spec || size_spec) {
-                                        return false;
+                                if (sign_spec) {
+                                        cxx.emit(Diagnostic::ERROR,
+                                                 *sign_spec_node,
+                                                 "\"%s\" modifier cannot be used with type \"%s\"",
+                                                 sign_spec, spec);
+                                        apply = false;
+                                }
+                                if (size_spec) {
+                                        cxx.emit(Diagnostic::ERROR,
+                                                 *size_spec_node,
+                                                 "\"%s\" modifier cannot be used with type \"%s\"",
+                                                 size_spec, spec);
+                                        apply = false;
                                 }
                                 break;
                         case CHAR:
                                 if (size_spec) {
-                                        return false;
+                                        cxx.emit(Diagnostic::ERROR,
+                                                 *size_spec_node,
+                                                 "\"%s\" modifier cannot be used with type \"char\"",
+                                                 size_spec);
+                                        return true;
                                 }
                                 break;
                         case INT:
                                 break;
                         case DOUBLE:
                                 if (sign_spec) {
-                                        return false;
-                                } else if (size_spec && (size_spec != LONG)) {
-                                        return false;
+                                        cxx.emit(Diagnostic::ERROR,
+                                                 *sign_spec_node,
+                                                 "\"%s\" modifier cannot be used with type \"double\"",
+                                                 sign_spec);
+                                        apply = false;
+                                }
+                                if (size_spec && (size_spec != LONG)) {
+                                        cxx.emit(Diagnostic::ERROR,
+                                                 *size_spec_node,
+                                                 "\"%s\" modifier cannot be used with type \"double\"",
+                                                 size_spec);
+                                        apply = false;
                                 }
                                 break;
                         }
 
-                        type_spec = type;
-                        type_rule = match->rule();
-                        type_pos  = spec.firstToken();
+                        if (apply) {
+                                type_spec = type;
+                                type_spec_node = &spec;
+                        }
                 } else if (size) {
                         if (size_spec && (size != size_spec)) {
-                                return false;
+                                cxx.emit(Diagnostic::ERROR, spec,
+                                         "\"%s\" conflicts with earlier \"%s\" modifier",
+                                         size, size_spec);
+                                return true;
                         }
 
                         switch (size) {
@@ -1811,39 +1857,67 @@ CXXParser::DeclSpecifier::addDeclSpecifier(
                                 break;
                         case SHORT: case LONG_LONG:
                                 if (type_spec && type_spec != INT) {
-                                        return false;
+                                        cxx.emit(Diagnostic::ERROR, spec,
+                                                 "\"%s\" modifier cannot be used with type \"%s\"",
+                                                 size, *type_spec_node);
+                                        return true;
                                 }
                                 break;
                         case LONG:
                                 if (type_spec && (type_spec != INT)
                                               && (type_spec != DOUBLE)) {
-                                        return false;
+                                        cxx.emit(Diagnostic::ERROR, spec,
+                                                 "\"%s\" modifier cannot be used with type \"%s\"",
+                                                 size, *type_spec_node);
+                                        return true;
                                 }
                                 break;
                         }
 
                         size_spec = size;
+                        size_spec_node = &spec;
                 } else if (sign) {
                         if (sign_spec && (sign != sign_spec)) {
-                                return false;
-                        } else if (type_spec && (type_spec != INT)
-                                      && (type_spec != CHAR)) {
-                                return false;
+                                cxx.emit(Diagnostic::ERROR, spec,
+                                         "\"%s\" conflicts with earlier modifier \"%s\"",
+                                         sign, sign_spec);
+                                apply = false;
                         }
-                        sign_spec = sign;
+                        if (type_spec && (type_spec != INT)
+                                      && (type_spec != CHAR)) {
+                                cxx.emit(Diagnostic::ERROR, spec,
+                                         "\"%s\" modifier cannot be used with type \"%s\"",
+                                         sign, *type_spec_node);
+                                apply = false;
+                        }
+
+                        if (apply) {
+                                sign_spec = sign;
+                                sign_spec_node = &spec;
+                        }
                 }
         } else if (spec.is(cxx.type_specifier)) {
-                if (type_spec) {
-                        return type_pos == spec.firstToken();
-                } else if (sign_spec || size_spec) {
-                        return false;
-                }
-
                 /* elaborated-type-specifier, typename-specifier,
                    enum-specifier or class-specifier */
-                type_spec = OTHER;
-                type_rule = spec.rule();
-                type_pos  = spec.firstToken();
+                if (type_spec) {
+                        return type_spec_node == &spec;
+                }
+                if (sign_spec) {
+                        cxx.emit(Diagnostic::ERROR, spec,
+                                 "\"%s\" modifier cannot be used with type \"%s\"",
+                                 sign_spec, *type_spec_node);
+                        apply = false;
+                } else if (size_spec) {
+                        cxx.emit(Diagnostic::ERROR, spec,
+                                 "\"%s\" modifier cannot be used with type \"%s\"",
+                                 size_spec, *type_spec_node);
+                        apply = false;
+                }
+
+                if (apply) {
+                        type_spec = OTHER;
+                        type_spec_node = &spec;
+                }
         }
 
         return true;
@@ -1931,7 +2005,7 @@ CXXParser::Declarator::end(
 {
         if (state.parsedNode()) {
                 Ptr me = new this_t;
-                if (!me->check(CXXParser::getFrom(state),
+                if (!me->check(state, CXXParser::getFrom(state),
                                *state.parsedNode())) {
                         return false;
                 }
@@ -1944,36 +2018,50 @@ CXXParser::Declarator::end(
 
 bool
 CXXParser::Declarator::check(
+        ParseState     &state,
         CXXParser      &cxx,
         const SPPFNode &dcl_node
 )
 {
-        SPPFNode::ConstPtr  nested_dcl = nullptr;
-        const Token        *ref_op     = nullptr;
+        SPPFNode::ConstPtr  nested_dcl     = nullptr;
+        const Token        *ref_op         = nullptr;
+        bool                ref_to_ref     = false,
+                            ptr_to_ref     = false,
+                            multi_fn_parms = false,
+                            array_of_refs  = false;
 
         for (const SPPFNode &part: subProductions(dcl_node)) {
                 if (part.is(cxx.ptr_operator)) {
                         if (part.firstToken()->is(TOK_AMP)
                                         || part.firstToken()->is(TOK_AMPAMP)) {
-                                if (ref_op) {  // error - reference to reference
-                                        return false;
+                                if (!ref_op) {
+                                        ref_op = part.firstToken();
+                                } else if (!ref_to_ref) {
+                                        state.emit(Diagnostic::ERROR,
+                                                   "reference to reference not permitted");
+                                        ref_to_ref = true;
                                 }
-                                ref_op = part.firstToken();
-                        } else if (ref_op) {  // error - pointer to reference
-                                return false;
+                        } else if (ref_op && !ptr_to_ref) {
+                                state.emit(Diagnostic::ERROR,
+                                           "pointer to reference not permitted");
+                                ptr_to_ref = true;
                         }
                         last_ptr = part.firstToken();
                 } else if (part.is(cxx.parameters_and_qualifiers)) {
-                        if (begin_parms) {
-                                /* error - multiple sets of function
-                                   parameters / qualifiers */
-                                return false;
+                        if (!begin_parms) {
+                                begin_parms = part.firstToken();
+                                        /* = first token of
+                                             parameter-declaration-clause */
+                        } else if (!multi_fn_parms) {
+                                state.emit(Diagnostic::ERROR, part,
+                                           "multiple sets of function parameters/qualifiers");
+                                multi_fn_parms = true;
                         }
-                        begin_parms = nonTerminals(part)->firstToken();
-                                // = first token of parameter-declaration-clause
                 } else if (part.is(cxx.array_declarator)) {
-                        if (ref_op) {  // error - array of references
-                                return false;
+                        if (ref_op && !array_of_refs) {
+                                state.emit(Diagnostic::ERROR,
+                                           "array of references not permitted");
+                                array_of_refs = true;
                         }
                         array = true;
                 } else if (part.is(cxx.nested_declarator)
@@ -1983,7 +2071,7 @@ CXXParser::Declarator::check(
         }
 
         if (nested_dcl) {
-                return check(cxx, *nested_dcl);
+                return check(state, cxx, *nested_dcl);
         }
 
         return true;
@@ -2231,4 +2319,121 @@ CXXParser::processTemplParmArgListEndToken(
 
 
 } // namespace parse
+
+//--------------------------------------
+
+namespace fmt {
+
+
+WRPARSE_API void
+fmt::TypeHandler<parse::CXXParser::DeclSpecifier::Sign>::set(
+        Arg                                   &arg,
+        parse::CXXParser::DeclSpecifier::Sign  val
+)
+{
+        arg.type = Arg::STR_T;
+        switch (val) {
+        case parse::CXXParser::DeclSpecifier::NO_SIGN:
+                arg.s = { "none", 4 };
+                break;
+        case parse::CXXParser::DeclSpecifier::SIGNED:
+                arg.s = { "signed", 6 };
+                break;
+        case parse::CXXParser::DeclSpecifier::UNSIGNED:
+                arg.s = { "unsigned", 8 };
+                break;
+        default:
+                arg.s = { "unknown", 7 };
+                break;
+        }
+}
+
+//--------------------------------------
+
+WRPARSE_API void
+fmt::TypeHandler<parse::CXXParser::DeclSpecifier::Size>::set(
+        Arg                                   &arg,
+        parse::CXXParser::DeclSpecifier::Size  val
+)
+{
+        arg.type = Arg::STR_T;
+        switch (val) {
+        case parse::CXXParser::DeclSpecifier::NO_SIZE:
+                arg.s = { "none", 4 };
+                break;
+        case parse::CXXParser::DeclSpecifier::SHORT:
+                arg.s = { "short", 5 };
+                break;
+        case parse::CXXParser::DeclSpecifier::LONG:
+                arg.s = { "long", 4 };
+                break;
+        case parse::CXXParser::DeclSpecifier::LONG_LONG:
+                arg.s = { "long long", 9 };
+                break;
+        default:
+                arg.s = { "unknown", 7 };
+                break;
+        }
+}
+
+//--------------------------------------
+
+WRPARSE_API void
+fmt::TypeHandler<parse::CXXParser::DeclSpecifier::Type>::set(
+        Arg                                   &arg,
+        parse::CXXParser::DeclSpecifier::Type  val
+)
+{
+        arg.type = Arg::STR_T;
+        switch (val) {
+        case parse::CXXParser::DeclSpecifier::NO_TYPE:
+                arg.s = { "none", 4 };
+                break;
+        case parse::CXXParser::DeclSpecifier::VOID:
+                arg.s = { "void", 4 };
+                break;
+        case parse::CXXParser::DeclSpecifier::AUTO:
+                arg.s = { "auto", 4 };
+                break;
+        case parse::CXXParser::DeclSpecifier::DECLTYPE:
+                arg.s = { "decltype(...)", 13 };
+                break;
+        case parse::CXXParser::DeclSpecifier::BOOL:
+                arg.s = { "bool", 4 };
+                break;
+        case parse::CXXParser::DeclSpecifier::CHAR:
+                arg.s = { "char", 4 };
+                break;
+        case parse::CXXParser::DeclSpecifier::CHAR16_T:
+                arg.s = { "char16_t", 8 };
+                break;
+        case parse::CXXParser::DeclSpecifier::CHAR32_T:
+                arg.s = { "char32_t", 8 };
+                break;
+        case parse::CXXParser::DeclSpecifier::WCHAR_T:
+                arg.s = { "wchar_t", 7 };
+                break;
+        case parse::CXXParser::DeclSpecifier::INT:
+                arg.s = { "int", 3 };
+                break;
+        case parse::CXXParser::DeclSpecifier::FLOAT:
+                arg.s = { "float", 5 };
+                break;
+        case parse::CXXParser::DeclSpecifier::DOUBLE:
+                arg.s = { "double", 6 };
+                break;
+        case parse::CXXParser::DeclSpecifier::NULLPTR_T:
+                arg.s = { "nullptr_t", 9 };
+                break;
+        case parse::CXXParser::DeclSpecifier::OTHER:
+                arg.s = { "user-defined", 12 };
+                break;
+        default:
+                arg.s = { "unknown", 7 };
+                break;
+        }
+}
+
+
+} // namespace fmt
 } // namespace wr
