@@ -60,7 +60,7 @@ public:
         bool isValidInitialIdentChar(char32_t c) const;
         bool nextClosingTokenIs(TokenKind k) const;
 
-        virtual this_t &clearStorage();
+        virtual this_t &clearStorage() override;
 
 protected:
         char32_t peek();  // interprets trigraphs and escaped newline
