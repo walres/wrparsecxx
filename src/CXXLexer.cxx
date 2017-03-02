@@ -259,8 +259,10 @@ CXXLexer::readToken(
                         eat_next = true;
                 } else {
                         setKindAndSpelling(t, TOK_HASH);
-                        if (t.flags() & TF_STARTS_LINE) {
-                                ppDirective(t);
+                        if (!options_.have(cxx::NO_PP_DIRECTIVES)) {
+                                if (t.flags() & TF_STARTS_LINE) {
+                                        ppDirective(t);
+                                }
                         }
                 }
                 break;
@@ -482,8 +484,10 @@ CXXLexer::readToken(
 
                         t.setKind(TOK_HASH).setSpelling(u8"%:");
 
-                        if (t.flags() & TF_STARTS_LINE) {
-                                ppDirective(t);
+                        if (!options_.have(cxx::NO_PP_DIRECTIVES)) {
+                                if (t.flags() & TF_STARTS_LINE) {
+                                        ppDirective(t);
+                                }
                         }
                         break;
                 default:

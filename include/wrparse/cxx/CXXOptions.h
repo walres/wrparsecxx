@@ -108,6 +108,8 @@ enum : uint64_t
         INLINE_FUNCTIONS = UINT64_C(1) << 11,
                         /**< Inline function specifier;
                              standard from C99 and in C++ */
+        NO_PP_DIRECTIVES = UINT64_C(1) << 12,
+                        ///< Lexer: do not interpret preprocessor directives
 
         C89_STD_FEATURES = TRIGRAPHS,
         C90_STD_FEATURES = C89_STD_FEATURES,

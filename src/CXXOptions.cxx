@@ -110,6 +110,9 @@ CXXOptions::CXXOptions(
         if (extra_features & cxx::INLINE_FUNCTIONS) {
                 keywords_.insert({ u8"inline", cxx::TOK_KW_INLINE });
         }
+        if (extra_features & cxx::NO_PP_DIRECTIVES) {
+                features_ |= cxx::NO_PP_DIRECTIVES;
+        }
 }
 
 //--------------------------------------
