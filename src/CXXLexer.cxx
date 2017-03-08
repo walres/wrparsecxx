@@ -1671,18 +1671,17 @@ CXXLexer::popClosingTokenIf(
         TokenKind k
 )
 {
+        if (k != TOK_GREATER) {
+                while (popClosingTokenIf(TOK_GREATER)) {
+                        ;
+                }
+        }
+
         bool result = false;
 
-        if (!closing_tokens_.empty()) {
-                if (k != TOK_GREATER) {
-                        while (popClosingTokenIf(TOK_GREATER)) {
-                                ;
-                        }
-                }
-                if (closing_tokens_.front() == k) {
-                        closing_tokens_.pop_front();
-                        result = true;
-                }
+        if (!closing_tokens_.empty() && (closing_tokens_.front() == k)) {
+                closing_tokens_.pop_front();
+                result = true;
         }
 
         return result;
